@@ -1,0 +1,286 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>2</storyId>
+    <title>Implement Database and Offline Sync</title>
+    <status>Draft</status>
+    <generatedAt>2025-10-22</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-classroom-competition-2.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>teacher</asA>
+    <iWant>class points to persist across browser sessions and work offline</iWant>
+    <soThat>multi-day competitions are reliable even with unreliable school internet</soThat>
+    <tasks>
+      <phase name="Phase 1: Supabase Setup" acs="1,2,3,4">
+        <task>Create Supabase project at https://supabase.com (named "Classroom-Plinko")</task>
+        <task>Execute SQL schema in Supabase dashboard to create `classes` and `drop_history` tables</task>
+        <task>Seed six classes with initial data (5 chips, 0 points each)</task>
+        <task>Install dependency: `npm install @supabase/supabase-js@2.76.1`</task>
+        <task>Create `src/lib/services/supabase.ts` with client configuration</task>
+        <task>Add `.env` file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY</task>
+        <task>Add `.env` to `.gitignore` (verify credentials not committed)</task>
+        <task>Test connection: fetch classes from Supabase and log to console</task>
+      </phase>
+      <phase name="Phase 2: IndexedDB Offline Queue" acs="5,6,10">
+        <task>Install dependency: `npm install dexie@4.2.1`</task>
+        <task>Create `src/lib/services/offlineQueue.ts` with Dexie database class</task>
+        <task>Implement schema: `queue` table with id, operation, class_id, payload, timestamp, retry_count, synced</task>
+        <task>Implement `addToQueue()` function to queue operations</task>
+        <task>Implement `getUnsynced()` function to retrieve pending operations sorted by timestamp</task>
+        <task>Implement `markSynced(id)` function to mark operations complete</task>
+        <task>Create `src/lib/stores/classroom.ts` with activeClassId, classesCache, syncStatus stores</task>
+        <task>Implement `activeClass` derived store (finds active class from cache)</task>
+        <task>Implement `leaderboard` derived store (sorts classes by total_points DESC)</task>
+      </phase>
+      <phase name="Phase 3: Sync Service" acs="7,8,9,11,12">
+        <task>Create `src/lib/services/syncService.ts` with syncNow() function</task>
+        <task>Implement operation processor for each operation type (add_points, subtract_chip, etc.)</task>
+        <task>Implement exponential backoff retry logic (1s, 2s, 4s, 8s, 16s max)</task>
+        <task>Implement startAutoSync() with 60-second interval</task>
+        <task>Add browser online event listener to trigger immediate sync</task>
+        <task>Implement refreshClassesCache() to pull latest data from Supabase</task>
+        <task>Set up Supabase real-time subscription to `classes` table changes</task>
+        <task>Update syncStatus store based on sync state (online/syncing/offline)</task>
+        <task>Add sync status indicator component (green/yellow/red dot in UI)</task>
+        <task>Test offline scenario: queue operations, go online, verify sync</task>
+      </phase>
+      <phase name="Phase 4: Integration" acs="10">
+        <task>Update chip drop handler to queue subtract_chip operation</task>
+        <task>Update point landing handler to queue add_points operation</task>
+        <task>Implement optimistic cache updates (update classesCache immediately)</task>
+        <task>Call syncNow() after each operation (but don't block UI)</task>
+        <task>Verify leaderboard updates in real-time when points change</task>
+        <task>Test edge case: multiple operations queued while offline, all sync correctly</task>
+      </phase>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Supabase project created with PostgreSQL database</criterion>
+    <criterion id="AC2">`classes` table created with schema: id, name, total_points, chips_remaining, last_reset_at</criterion>
+    <criterion id="AC3">Six classes seeded: "Period 1" through "Period 6" with initial 5 chips each</criterion>
+    <criterion id="AC4">Supabase client configured in `src/lib/services/supabase.ts`</criterion>
+    <criterion id="AC5">IndexedDB queue implemented with Dexie.js in `src/lib/services/offlineQueue.ts`</criterion>
+    <criterion id="AC6">Queue operations: add_points, subtract_chip, reset_chips, undo</criterion>
+    <criterion id="AC7">Sync service auto-retries failed operations with exponential backoff</criterion>
+    <criterion id="AC8">Sync runs automatically every 60 seconds when online</criterion>
+    <criterion id="AC9">Browser online/offline events trigger immediate sync attempts</criterion>
+    <criterion id="AC10">Optimistic UI updates (local cache updates immediately, sync in background)</criterion>
+    <criterion id="AC11">Supabase real-time subscriptions update leaderboard across clients</criterion>
+    <criterion id="AC12">Sync status indicator shows: online (green), syncing (yellow), offline (red)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Technical Specification: Educational Classroom Competition Transform</title>
+        <section>Services and Modules</section>
+        <snippet>Defines supabase.ts, offlineQueue.ts, syncService.ts, and classroom.ts store modules with responsibilities, inputs, and outputs. Provides complete interface definitions for all database and sync operations.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Technical Specification: Educational Classroom Competition Transform</title>
+        <section>Data Models and Contracts</section>
+        <snippet>Defines TypeScript types (Player, DropRecord, QueuedOperation), Supabase database schema with SQL DDL, and IndexedDB schema using Dexie.js. Includes complete table structures and indexes.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Technical Specification: Educational Classroom Competition Transform</title>
+        <section>APIs and Interfaces</section>
+        <snippet>Complete interface definitions for Supabase service (createSupabaseClient, getPlayersByClass, updatePlayerPoints, etc.), offline queue (queueOperation, getQueuedOperations), and sync service (syncQueuedOperations, startAutoSync).</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Technical Specification: Educational Classroom Competition Transform</title>
+        <section>Workflows and Sequencing</section>
+        <snippet>Detailed flow diagrams for online mode (direct Supabase writes), offline mode (IndexedDB queue + sync), and sync recovery with exponential backoff retry logic.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Technical Specification: Educational Classroom Competition Transform</title>
+        <section>Dependencies and Integrations</section>
+        <snippet>New dependencies: @supabase/supabase-js ^2.39.0 and dexie ^3.2.4. Environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Integration points with Matter.js physics engine preserved.</snippet>
+      </doc>
+      <doc>
+        <path>docs/data-models.md</path>
+        <title>Data Models and Types</title>
+        <section>Store Types</section>
+        <snippet>Documents existing Svelte store pattern with writable and derived stores. Pattern to follow for new classroom.ts stores (activeClassPeriod, currentPlayers, syncStatus, classLeaderboard, canDrop).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Documentation</title>
+        <section>State Management</section>
+        <snippet>Existing centralized reactive store architecture using Svelte stores. New classroom.ts must follow established patterns with writable stores for state and derived stores for computed values.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Documentation</title>
+        <section>Data Persistence</section>
+        <snippet>Current localStorage pattern saves balance on beforeunload event. New Supabase/IndexedDB persistence replaces localStorage for multi-session, multi-class data with offline queue fallback.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/lib/stores/game.ts</path>
+        <kind>store</kind>
+        <symbol>points, recentWins, rowCount, binColors, plinkoEngine</symbol>
+        <lines>entire file</lines>
+        <reason>Existing store pattern to follow for new classroom.ts store. Shows writable store creation, derived store patterns, and reactive state management approach.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/components/Plinko/PlinkoEngine.ts</path>
+        <kind>service</kind>
+        <symbol>PlinkoEngine class</symbol>
+        <lines>entire file</lines>
+        <reason>Physics engine that will dispatch ball collision events. Need to integrate with new sync service to queue point operations when ball lands in slot.</reason>
+      </artifact>
+      <artifact>
+        <path>src/lib/components/Plinko/Plinko.svelte</path>
+        <kind>component</kind>
+        <symbol>Plinko component</symbol>
+        <lines>entire file</lines>
+        <reason>Main game component that handles ball drop logic. Will integrate with new classroom stores and queue operations for chip decrements and point additions.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <existing>
+          <package name="@sveltejs/kit" version="^2.0.0" />
+          <package name="svelte" version="^4.2.7" />
+          <package name="matter-js" version="^0.19.0" />
+          <package name="uuid" version="^9.0.1" />
+          <package name="vite" version="^5.0.3" />
+          <package name="vitest" version="^1.2.0" />
+          <package name="@playwright/test" version="^1.44.0" />
+        </existing>
+        <toAdd>
+          <package name="@supabase/supabase-js" version="^2.39.0" purpose="Supabase JavaScript client for database and real-time subscriptions" />
+          <package name="dexie" version="^3.2.4" purpose="IndexedDB wrapper for offline queue management with promises-based API" />
+        </toAdd>
+        <toRemove>
+          <package name="svelte-persisted-store" reason="Replaced by Supabase for persistence (Story 1 already removed this)" />
+          <package name="chart.js" reason="Gambling analytics (Story 1 should have removed this)" />
+        </toRemove>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">Must remain client-side only application with no custom backend server (use Supabase backend-as-a-service)</constraint>
+    <constraint type="architecture">Must function completely offline with degraded sync (IndexedDB queue persists operations until network restored)</constraint>
+    <constraint type="performance">Supabase queries must use indexed columns (class_period, total_points) to support 180 total players across six classes</constraint>
+    <constraint type="performance">IndexedDB operations must complete in &lt;50ms for queue writes to avoid blocking UI</constraint>
+    <constraint type="performance">Sync operation must complete in &lt;2s for batch of 50 queued operations</constraint>
+    <constraint type="reliability">Automatic sync retry with exponential backoff (1s, 2s, 4s, 8s, max 30s) - alert teacher after 10 failed attempts</constraint>
+    <constraint type="reliability">Network failure during drop: Queue operation, show success to user (optimistic UI pattern)</constraint>
+    <constraint type="security">Environment variables for Supabase keys (not committed to repo) - add .env to .gitignore</constraint>
+    <constraint type="security">Row-Level Security (RLS) policies on Supabase tables to enforce class period isolation</constraint>
+    <constraint type="integration">Must integrate with existing Svelte stores pattern (writable/derived stores in src/lib/stores/)</constraint>
+    <constraint type="integration">Must preserve existing Matter.js physics engine integration (PlinkoEngine collision events)</constraint>
+    <constraint type="testing">Unit test coverage target: 80% for new services (supabase.ts, offlineQueue.ts, syncService.ts)</constraint>
+    <constraint type="testing">E2E tests must verify all 12 acceptance criteria using Playwright</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>createSupabaseClient</name>
+      <kind>function</kind>
+      <signature>export function createSupabaseClient(): SupabaseClient</signature>
+      <path>src/lib/services/supabase.ts</path>
+    </interface>
+    <interface>
+      <name>getPlayersByClass</name>
+      <kind>async function</kind>
+      <signature>export async function getPlayersByClass(classPeriod: ClassPeriod): Promise&lt;Player[]&gt;</signature>
+      <path>src/lib/services/supabase.ts</path>
+    </interface>
+    <interface>
+      <name>updatePlayerPoints</name>
+      <kind>async function</kind>
+      <signature>export async function updatePlayerPoints(playerId: string, points: number): Promise&lt;void&gt;</signature>
+      <path>src/lib/services/supabase.ts</path>
+    </interface>
+    <interface>
+      <name>updatePlayerChips</name>
+      <kind>async function</kind>
+      <signature>export async function updatePlayerChips(playerId: string, chips: number): Promise&lt;void&gt;</signature>
+      <path>src/lib/services/supabase.ts</path>
+    </interface>
+    <interface>
+      <name>queueOperation</name>
+      <kind>async function</kind>
+      <signature>export async function queueOperation(operation: QueuedOperation): Promise&lt;void&gt;</signature>
+      <path>src/lib/services/offlineQueue.ts</path>
+    </interface>
+    <interface>
+      <name>getQueuedOperations</name>
+      <kind>async function</kind>
+      <signature>export async function getQueuedOperations(): Promise&lt;QueuedOperation[]&gt;</signature>
+      <path>src/lib/services/offlineQueue.ts</path>
+    </interface>
+    <interface>
+      <name>syncQueuedOperations</name>
+      <kind>async function</kind>
+      <signature>export async function syncQueuedOperations(): Promise&lt;SyncResult&gt;</signature>
+      <path>src/lib/services/syncService.ts</path>
+    </interface>
+    <interface>
+      <name>startAutoSync</name>
+      <kind>function</kind>
+      <signature>export function startAutoSync(intervalMs: number): void</signature>
+      <path>src/lib/services/syncService.ts</path>
+    </interface>
+    <interface>
+      <name>activeClassPeriod</name>
+      <kind>Writable store</kind>
+      <signature>export const activeClassPeriod: Writable&lt;ClassPeriod&gt;</signature>
+      <path>src/lib/stores/classroom.ts</path>
+    </interface>
+    <interface>
+      <name>classLeaderboard</name>
+      <kind>Readable store (derived)</kind>
+      <signature>export const classLeaderboard: Readable&lt;Player[]&gt;</signature>
+      <path>src/lib/stores/classroom.ts</path>
+    </interface>
+    <interface>
+      <name>syncStatus</name>
+      <kind>Writable store</kind>
+      <signature>export const syncStatus: Writable&lt;SyncStatus&gt;</signature>
+      <path>src/lib/stores/classroom.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Existing test infrastructure: Vitest for unit/integration tests, Playwright for E2E tests. Test files follow pattern: src/lib/[module]/__tests__/[module].test.ts for units, tests/[feature].spec.ts for E2E. Target 80% coverage for new services. Use Supabase local dev instance or test project for integration tests. Mock network failures with Playwright offline mode for offline scenarios.
+    </standards>
+    <locations>
+      <location>src/lib/services/__tests__/supabase.test.ts</location>
+      <location>src/lib/services/__tests__/offlineQueue.test.ts</location>
+      <location>src/lib/services/__tests__/syncService.test.ts</location>
+      <location>src/lib/stores/__tests__/classroom.test.ts</location>
+      <location>tests/e2e/offline-sync.spec.ts</location>
+      <location>tests/e2e/database-integration.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1,AC2,AC3">Integration test: Verify Supabase project setup, classes table schema matches specification, and six classes are seeded with correct initial data (5 chips, 0 points)</idea>
+      <idea ac="AC4">Unit test: Verify createSupabaseClient() initializes with environment variables and returns valid SupabaseClient instance</idea>
+      <idea ac="AC5">Unit test: Verify Dexie database initializes with correct schema (queue table with all required fields)</idea>
+      <idea ac="AC6">Unit test: Verify queueOperation() adds operations to IndexedDB and getQueuedOperations() retrieves them sorted by timestamp</idea>
+      <idea ac="AC7">Integration test: Queue operations, simulate network failures, verify exponential backoff retry (1s, 2s, 4s intervals) and eventual success</idea>
+      <idea ac="AC8">Integration test: Start auto-sync, verify syncQueuedOperations() called every 60 seconds</idea>
+      <idea ac="AC9">E2E test: Simulate browser offline event, verify immediate sync attempt when back online</idea>
+      <idea ac="AC10">E2E test: Drop chip offline, verify local cache updates immediately (optimistic UI), then sync in background when online</idea>
+      <idea ac="AC11">Integration test: Update player points in Supabase, verify real-time subscription triggers classLeaderboard update</idea>
+      <idea ac="AC12">E2E test: Verify sync status indicator shows green (online), yellow (syncing), red (offline) based on network state</idea>
+      <idea>Edge case test: Browser refresh mid-sync - verify queued operations persist in IndexedDB and resume on reload</idea>
+      <idea>Edge case test: Multiple operations queued offline (50+ ops), verify all sync correctly with batch processing</idea>
+      <idea>Performance test: Measure IndexedDB write latency (&lt;50ms target) and sync operation time (&lt;2s for 50 ops target)</idea>
+    </ideas>
+  </tests>
+</story-context>

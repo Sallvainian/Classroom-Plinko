@@ -17,3 +17,13 @@ vite.config.ts.timestamp-*
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Claude Code and AI tools
+.claude/
+.serena/
+.mcp.json
+.genkit/
+bmad/
+
+# Temporary files
+clear-queue.html

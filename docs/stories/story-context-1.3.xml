@@ -1,0 +1,174 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>3</storyId>
+    <title>Build Classroom Interface</title>
+    <status>Draft</status>
+    <generatedAt>2025-10-23</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/story-classroom-competition-3.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>teacher</asA>
+    <iWant>to select active class, view leaderboard, and manage chips</iWant>
+    <soThat>I can run daily classroom competitions efficiently</soThat>
+    <tasks>
+      <phase id="1" name="Class Period Selection">
+        <task>Create ClassPeriodSelector.svelte component with 6-button grid layout</task>
+        <task>Integrate with classesCache and activeClassId stores</task>
+        <task>Implement sessionStorage persistence for class selection</task>
+        <task>Apply visual highlighting for active class (Tailwind ring)</task>
+      </phase>
+      <phase id="2" name="Leaderboard Sidebar">
+        <task>Create Leaderboard.svelte with semantic HTML table</task>
+        <task>Subscribe to classLeaderboard derived store (auto-sorted)</task>
+        <task>Display columns: Rank, Class Name, Points (formatted), Chips (X/5)</task>
+        <task>Highlight active class row with background color</task>
+        <task>Ensure always-visible, no collapse functionality</task>
+      </phase>
+      <phase id="3" name="Teacher Admin Panel">
+        <task>Create TeacherAdminPanel.svelte as collapsible panel</task>
+        <task>Implement chip +/- controls for each class</task>
+        <task>Add "Reset All Chips" button with confirmation dialog</task>
+        <task>Integrate SyncStatusIndicator component</task>
+        <task>Implement "Undo Last Drop" button (nice-to-have)</task>
+      </phase>
+      <phase id="4" name="Integration">
+        <task>Update src/routes/+page.svelte to include all components</task>
+        <task>Ensure responsive layout: game center, controls left sidebar</task>
+        <task>Add chip validation: disable Drop Chip button if 0 chips</task>
+        <task>Test complete flow and edge cases</task>
+      </phase>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Class period selector displays 6 buttons: "Period 1" through "Period 6"</criterion>
+    <criterion id="AC2">Active class highlighted with visual indicator (blue ring)</criterion>
+    <criterion id="AC3">Class selection persists in sessionStorage (resets daily)</criterion>
+    <criterion id="AC4">Leaderboard sidebar always visible (not collapsible)</criterion>
+    <criterion id="AC5">Leaderboard shows 3 columns: Class Name, Total Points, Chips Remaining</criterion>
+    <criterion id="AC6">Leaderboard sorted by total points descending (highest first)</criterion>
+    <criterion id="AC7">Active class highlighted in leaderboard (background color)</criterion>
+    <criterion id="AC8">Leaderboard updates in real-time when points/chips change</criterion>
+    <criterion id="AC9">Teacher admin panel includes chip +/- buttons for each class</criterion>
+    <criterion id="AC10">Manual "Reset All Chips" button with confirmation dialog</criterion>
+    <criterion id="AC11">Undo button reverses last chip drop (nice-to-have)</criterion>
+    <criterion id="AC12">Sync status indicator visible (green dot = online, yellow = syncing, red = offline)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/tech-spec-epic-1.md" title="Epic 1 Technical Specification" section="Services and Modules">
+        Defines ClassPeriodSelector, Leaderboard, TeacherAdminPanel, and ChipCounter components with their responsibilities, inputs, and outputs. ClassPeriodSelector handles six class periods and outputs selected class period. Leaderboard displays real-time player scores from Supabase in sorted rankings.
+      </doc>
+      <doc path="docs/tech-spec-epic-1.md" title="Epic 1 Technical Specification" section="Svelte Store Interface">
+        Specifies classroom.ts store exports: activeClassPeriod (Writable), currentPlayers (Writable), syncStatus (Writable), classLeaderboard (Readable, auto-sorted by totalPoints DESC), canDrop (Readable, based on chips remaining).
+      </doc>
+      <doc path="docs/tech-spec-epic-1.md" title="Epic 1 Technical Specification" section="Test Strategy Summary">
+        E2E tests using Playwright must cover all 18 acceptance criteria. Critical scenarios include class switching with isolation verification, offline mode testing, and admin controls (chip management, undo, reset). Test files located in tests/classroom/, tests/offline/, tests/admin/.
+      </doc>
+      <doc path="docs/tech-spec-epic-1.md" title="Epic 1 Technical Specification" section="Traceability Mapping">
+        AC-4 maps to ClassPeriodSelector component with E2E test clicking period selector to verify active period changes. AC-7 maps to Leaderboard component with E2E test verifying leaderboard sorted by totalPoints DESC. AC-10 maps to TeacherAdminPanel with E2E test clicking manual reset to verify chips = 5 for class.
+      </doc>
+      <doc path="docs/tech-spec-epic-1.md" title="Epic 1 Technical Specification" section="Workflows and Sequencing">
+        Class Period Switch Flow: Teacher selects class period → activeClassPeriod.set(newPeriod) → Unsubscribe from previous class → Load players via getPlayersByClass() → Update currentPlayers store → Subscribe to new class leaderboard → Leaderboard re-renders. Teacher Chip Adjustment Flow uses updatePlayerChips() or queueOperation() for offline support with optimistic UI updates.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="src/lib/stores/classroom.ts" kind="store" symbol="classesCache" lines="all" reason="Writable store containing all six class periods with their current state (total_points, chips_remaining). Primary data source for UI components."/>
+      <artifact path="src/lib/stores/classroom.ts" kind="store" symbol="activeClassId" lines="all" reason="Writable store tracking currently selected class ID. Used by ClassPeriodSelector for persistence and Leaderboard for highlighting."/>
+      <artifact path="src/lib/stores/classroom.ts" kind="store" symbol="classLeaderboard" lines="all" reason="Derived store auto-sorting classes by total_points DESC. Direct data source for Leaderboard component rendering."/>
+      <artifact path="src/lib/stores/classroom.ts" kind="store" symbol="syncStatus" lines="all" reason="Writable store tracking sync state ('online', 'syncing', 'offline'). Used by SyncStatusIndicator in TeacherAdminPanel."/>
+      <artifact path="src/lib/stores/classroom.ts" kind="store" symbol="canDrop" lines="all" reason="Derived store determining if Drop Chip button should be enabled based on active class chips_remaining &gt; 0."/>
+      <artifact path="src/lib/services/supabase.ts" kind="service" symbol="getAllClasses" lines="26-37" reason="Fetches all six classes from database. Used on app initialization to populate classesCache."/>
+      <artifact path="src/lib/services/supabase.ts" kind="service" symbol="subtractClassChip" lines="101-119" reason="Decrements chips_remaining for a class. Called when Drop Chip button clicked. Returns error if chips &lt;= 0."/>
+      <artifact path="src/lib/services/supabase.ts" kind="service" symbol="resetClassChips" lines="144-157" reason="Resets chips_remaining to 5 and updates last_reset_at timestamp for a single class. Used by TeacherAdminPanel reset functionality."/>
+      <artifact path="src/lib/services/supabase.ts" kind="service" symbol="subscribeToClasses" lines="196-221" reason="Creates real-time subscription to classes table changes. Enables live leaderboard updates when any class points/chips change."/>
+      <artifact path="src/lib/components/SyncStatusIndicator.svelte" kind="component" symbol="SyncStatusIndicator" lines="all" reason="Existing component displaying sync status indicator dots. Should be reused in TeacherAdminPanel to satisfy AC12."/>
+      <artifact path="src/lib/types/classroom.ts" kind="types" symbol="Class" lines="all" reason="TypeScript interface defining Class structure with id, name, total_points, chips_remaining, last_reset_at, created_at fields."/>
+      <artifact path="src/lib/types/classroom.ts" kind="types" symbol="SyncStatus" lines="all" reason="TypeScript union type: 'online' | 'syncing' | 'offline'. Used for syncStatus store typing."/>
+    </code>
+    <dependencies>
+      <framework name="SvelteKit" version="^2.0.0" purpose="Web framework providing routing and SSG"/>
+      <framework name="Svelte" version="^4.2.7" purpose="UI framework for reactive components"/>
+      <framework name="Tailwind CSS" version="^3.4.x" purpose="Utility-first CSS styling framework"/>
+      <library name="bits-ui" version="^0.21.7" purpose="UI component primitives (Dialog, Switch, etc.)"/>
+      <library name="@supabase/supabase-js" version="^2.39.0" purpose="Supabase client for database operations"/>
+      <library name="dexie" version="^3.2.4" purpose="IndexedDB wrapper for offline queue"/>
+      <library name="phosphor-svelte" version="^2.0.1" purpose="Icon library (dev dependency)"/>
+      <testing name="@playwright/test" version="^1.44.0" purpose="E2E testing framework"/>
+      <testing name="vitest" version="^1.x.x" purpose="Unit testing framework"/>
+      <testing name="jsdom" version="^27.0.1" purpose="DOM implementation for testing"/>
+      <testing name="fake-indexeddb" version="^6.2.4" purpose="IndexedDB mock for unit tests"/>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">Component-based UI architecture using Svelte single-file components (.svelte). All components must follow existing patterns: script block with TypeScript, markup with Tailwind classes, optional style block.</constraint>
+    <constraint type="state-management">All reactive state must use Svelte stores from src/lib/stores/classroom.ts. DO NOT create new stores - use existing classesCache, activeClassId, classLeaderboard, syncStatus, canDrop.</constraint>
+    <constraint type="data-flow">Components subscribe to stores using $ reactive syntax. Store updates trigger automatic re-renders. Use derived stores for computed values (e.g., classLeaderboard already sorts by total_points).</constraint>
+    <constraint type="styling">Tailwind CSS utility classes only. NO custom CSS except user-select: none for UI controls. Follow existing patterns: bg-blue-500, text-white, rounded-lg, hover:bg-blue-600.</constraint>
+    <constraint type="persistence">Class selection persists in sessionStorage with key 'activeClassId'. DO NOT use localStorage. Session storage clears on browser close/new tab.</constraint>
+    <constraint type="offline-support">All Supabase write operations must queue to IndexedDB via queueOperation() from src/lib/services/offlineQueue.ts for offline resilience.</constraint>
+    <constraint type="testing">Unit tests using Vitest with @testing-library/svelte for component logic. E2E tests using Playwright for full user workflows. Minimum 80% coverage for new components.</constraint>
+    <constraint type="accessibility">Semantic HTML (table, button, etc.). ARIA labels for interactive elements. Keyboard navigation support. High contrast for projector visibility.</constraint>
+    <constraint type="error-handling">Graceful degradation for missing data. Console errors for debugging. User-facing error messages in UI (not alerts). Optimistic UI updates with rollback on failure.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="classesCache store" kind="Svelte Writable Store" signature="Writable&lt;Class[]&gt;" path="src/lib/stores/classroom.ts">
+      Writable store containing array of all six Class objects. Subscribe with $classesCache. Update with classesCache.set() or classesCache.update(). Used by all UI components as primary data source.
+    </interface>
+    <interface name="activeClassId store" kind="Svelte Writable Store" signature="Writable&lt;string&gt;" path="src/lib/stores/classroom.ts">
+      Writable store containing UUID of currently selected class. Subscribe with $activeClassId. Update with activeClassId.set(newId). Syncs to sessionStorage automatically.
+    </interface>
+    <interface name="classLeaderboard store" kind="Svelte Derived Store" signature="Readable&lt;Class[]&gt;" path="src/lib/stores/classroom.ts">
+      Derived store auto-sorting classesCache by total_points DESC. Read-only. Subscribe with $classLeaderboard. Updates automatically when classesCache changes.
+    </interface>
+    <interface name="syncStatus store" kind="Svelte Writable Store" signature="Writable&lt;SyncStatus&gt;" path="src/lib/stores/classroom.ts">
+      Writable store tracking current sync state: 'online' | 'syncing' | 'offline'. Subscribe with $syncStatus. Updated by sync service. Used for status indicator color.
+    </interface>
+    <interface name="getAllClasses" kind="Supabase Service Function" signature="getAllClasses(): Promise&lt;Class[]&gt;" path="src/lib/services/supabase.ts">
+      Fetches all classes from Supabase ordered by name ascending. Returns Promise resolving to Class[] or throws Error. Call on app initialization to populate classesCache.
+    </interface>
+    <interface name="subtractClassChip" kind="Supabase Service Function" signature="subtractClassChip(classId: string): Promise&lt;void&gt;" path="src/lib/services/supabase.ts">
+      Decrements chips_remaining by 1 for specified class. Throws Error if classId not found or chips already 0. Updates Supabase database. Call before dropping chip.
+    </interface>
+    <interface name="resetClassChips" kind="Supabase Service Function" signature="resetClassChips(classId: string): Promise&lt;void&gt;" path="src/lib/services/supabase.ts">
+      Resets chips_remaining to 5 and updates last_reset_at timestamp for single class. Throws Error if classId not found. Used by TeacherAdminPanel manual reset.
+    </interface>
+    <interface name="subscribeToClasses" kind="Supabase Real-time" signature="subscribeToClasses(callback: (payload) =&gt; void): () =&gt; void" path="src/lib/services/supabase.ts">
+      Subscribes to real-time changes on classes table. Callback receives { new, old, eventType }. Returns unsubscribe function. Call in onMount, cleanup in onDestroy.
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Unit tests using Vitest with jsdom environment. Component tests use @testing-library/svelte for DOM queries and user interactions. Mock Supabase calls and store subscriptions. Test files colocated in __tests__ subdirectories. E2E tests using Playwright targeting Chromium browser. Test files in tests/ directory organized by feature (classroom/, offline/, admin/). Minimum 80% code coverage for new components. All 12 acceptance criteria must have corresponding E2E test cases.
+    </standards>
+    <locations>
+      <location>src/lib/components/Classroom/__tests__/*.test.ts</location>
+      <location>tests/classroom/*.spec.ts</location>
+      <location>tests/admin/*.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1">E2E test: Verify 6 period buttons render with correct labels "Period 1" through "Period 6"</idea>
+      <idea ac="AC2">E2E test: Click period button, verify Tailwind ring-2 ring-blue-500 class applied</idea>
+      <idea ac="AC3">Unit test: Set activeClassId, verify sessionStorage.getItem('activeClassId') returns same value</idea>
+      <idea ac="AC4">E2E test: Navigate to page, verify leaderboard sidebar always visible (no collapse button exists)</idea>
+      <idea ac="AC5">E2E test: Verify leaderboard table has exactly 3 data columns: Class, Points, Chips</idea>
+      <idea ac="AC6">E2E test: Insert classes with varying points, verify leaderboard rows ordered by points DESC</idea>
+      <idea ac="AC7">E2E test: Select class, verify leaderboard row has bg-blue-100 or similar highlight class</idea>
+      <idea ac="AC8">E2E test: Subscribe to real-time, add points via Supabase, verify leaderboard updates within 200ms</idea>
+      <idea ac="AC9">E2E test: Open admin panel, verify +/- buttons present for each of 6 classes</idea>
+      <idea ac="AC10">E2E test: Click "Reset All Chips", verify confirmation dialog appears, click confirm, verify all classes chips = 5</idea>
+      <idea ac="AC11">E2E test: Drop chip, click undo button, verify points reverted and chips incremented</idea>
+      <idea ac="AC12">E2E test: Verify sync status indicator visible, toggle network, verify color changes (green → yellow → red)</idea>
+      <idea ac="integration">E2E test: Complete flow - select class, drop chip (chips decrement), verify leaderboard updates, adjust chips via admin panel, reset all chips</idea>
+      <idea ac="edge-case">Unit test: Attempt chip decrement when chips_remaining = 0, verify error thrown and UI disabled</idea>
+      <idea ac="edge-case">E2E test: Switch class periods during active gameplay, verify correct class data loads</idea>
+    </ideas>
+  </tests>
+</story-context>
