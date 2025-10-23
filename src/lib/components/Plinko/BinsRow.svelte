@@ -1,20 +1,14 @@
 <script lang="ts">
-  import { binColorsByRowCount, binPayouts } from '$lib/constants/game';
-  import { plinkoEngine, riskLevel, rowCount, winRecords } from '$lib/stores/game';
+  import { POINT_SLOTS, binColorsByRowCount } from '$lib/constants/game';
+  import { plinkoEngine, rowCount } from '$lib/stores/game';
   import { isAnimationOn } from '$lib/stores/settings';
+  import { onMount, onDestroy } from 'svelte';
   import type { Action } from 'svelte/action';
 
   /**
    * Bounce animations for each bin, which is played when a ball falls into the bin.
    */
   let binAnimations: Animation[] = [];
-
-  $: {
-    if ($winRecords.length) {
-      const lastWinBinIndex = $winRecords[$winRecords.length - 1].binIndex;
-      playAnimation(lastWinBinIndex);
-    }
-  }
 
   const initAnimation: Action<HTMLDivElement> = (node) => {
     const bounceAnimation = node.animate(
@@ -45,13 +39,31 @@
 
     animation.play();
   }
+
+  // Listen for ballEnteredBin events and play animation
+  const handleBallEnteredBin = (event: Event) => {
+    const customEvent = event as CustomEvent<{ binIndex: number; points: number }>;
+    playAnimation(customEvent.detail.binIndex);
+  };
+
+  onMount(() => {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('ballEnteredBin', handleBallEnteredBin);
+    }
+  });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('ballEnteredBin', handleBallEnteredBin);
+    }
+  });
 </script>
 
 <!-- Height clamping in mobile: From 10px at 370px viewport width to 16px at 600px viewport width -->
 <div class="flex h-[clamp(10px,0.352px+2.609vw,16px)] w-full justify-center lg:h-7">
   {#if $plinkoEngine}
     <div class="flex gap-[1%]" style:width={`${($plinkoEngine.binsWidthPercentage ?? 0) * 100}%`}>
-      {#each binPayouts[$rowCount][$riskLevel] as payout, binIndex}
+      {#each POINT_SLOTS as points, binIndex}
         <!-- Font-size clamping:
               - Mobile (< 1024px): From 6px at 370px viewport width to 8px at 600px viewport width
               - Desktop (>= 1024px): From 10px at 1024px viewport width to 12px at 1100px viewport width
@@ -62,7 +74,7 @@
           style:background-color={binColorsByRowCount[$rowCount].background[binIndex]}
           style:--shadow-color={binColorsByRowCount[$rowCount].shadow[binIndex]}
         >
-          {payout}{payout < 100 ? '×' : ''}
+          {points}
         </div>
       {/each}
     </div>

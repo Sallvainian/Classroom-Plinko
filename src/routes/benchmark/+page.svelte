@@ -1,9 +1,7 @@
 <script lang="ts">
-  import BinsDistribution from '$lib/components/BinsDistribution.svelte';
   import Plinko from '$lib/components/Plinko';
   import { rowCountOptions } from '$lib/constants/game';
-  import { plinkoEngine, riskLevel, rowCount } from '$lib/stores/game';
-  import { RiskLevel } from '$lib/types';
+  import { plinkoEngine, rowCount } from '$lib/stores/game';
 
   let dropBallInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -43,15 +41,6 @@
     </select>
   </div>
 
-  <div class="flex items-center gap-4">
-    <label for="riskLevel">Risk</label>
-    <select id="riskLevel" bind:value={$riskLevel} class="border border-gray-400 p-2">
-      {#each [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH] as riskLevel}
-        <option value={riskLevel}>{riskLevel}</option>
-      {/each}
-    </select>
-  </div>
-
   <button on:click={dropSingleBall} class="bg-cyan-100 p-2">Drop Ball</button>
 
   {#if dropBallInterval === null}
@@ -61,8 +50,4 @@
   {/if}
 
   <p>Dropped: <span>{ballsDropped}</span></p>
-</div>
-
-<div class="mx-4 my-8">
-  <BinsDistribution />
 </div>

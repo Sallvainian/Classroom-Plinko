@@ -1,18 +1,10 @@
-import { binPayouts } from '$lib/constants/game';
-import {
-  rowCount,
-  winRecords,
-  riskLevel,
-  betAmount,
-  balance,
-  betAmountOfExistingBalls,
-  totalProfitHistory,
-} from '$lib/stores/game';
-import type { RiskLevel, RowCount } from '$lib/types';
+import { POINT_SLOTS } from '$lib/constants/game';
+import { rowCount } from '$lib/stores/game';
+import type { RowCount } from '$lib/types';
 import { getRandomBetween } from '$lib/utils/numbers';
 import Matter, { type IBodyDefinition } from 'matter-js';
 import { get } from 'svelte/store';
-import { v4 as uuidv4 } from 'uuid';
+import { soundService } from '$lib/services/soundService';
 
 type BallFrictionsByRowCount = {
   friction: NonNullable<IBodyDefinition['friction']>;
@@ -31,17 +23,9 @@ class PlinkoEngine {
   private canvas: HTMLCanvasElement;
 
   /**
-   * A cache value of the {@link betAmount} store for faster access.
-   */
-  private betAmount: number;
-  /**
    * A cache value of the {@link rowCount} store for faster access.
    */
   private rowCount: RowCount;
-  /**
-   * A cache value of the {@link riskLevel} store for faster access.
-   */
-  private riskLevel: RiskLevel;
 
   private engine: Matter.Engine;
   private render: Matter.Render;
@@ -112,12 +96,8 @@ class PlinkoEngine {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
 
-    this.betAmount = get(betAmount);
     this.rowCount = get(rowCount);
-    this.riskLevel = get(riskLevel);
-    betAmount.subscribe((value) => (this.betAmount = value));
     rowCount.subscribe((value) => this.updateRowCount(value));
-    riskLevel.subscribe((value) => (this.riskLevel = value));
 
     this.engine = Matter.Engine.create({
       timing: {
@@ -130,7 +110,7 @@ class PlinkoEngine {
       options: {
         width: PlinkoEngine.WIDTH,
         height: PlinkoEngine.HEIGHT,
-        background: '#0f1728',
+        background: '#000000',
         wireframes: false,
       },
     });
@@ -152,12 +132,31 @@ class PlinkoEngine {
       },
     );
     Matter.Composite.add(this.engine.world, [this.sensor]);
+
+    // Handle bin landing detection
     Matter.Events.on(this.engine, 'collisionStart', ({ pairs }) => {
       pairs.forEach(({ bodyA, bodyB }) => {
         if (bodyA === this.sensor) {
           this.handleBallEnterBin(bodyB);
         } else if (bodyB === this.sensor) {
           this.handleBallEnterBin(bodyA);
+        }
+      });
+    });
+
+    // Handle ball-pin collision sounds
+    Matter.Events.on(this.engine, 'collisionStart', ({ pairs }) => {
+      pairs.forEach(({ bodyA, bodyB, collision }) => {
+        const isBallPinCollision =
+          (bodyA.collisionFilter.category === PlinkoEngine.BALL_CATEGORY &&
+            bodyB.collisionFilter.category === PlinkoEngine.PIN_CATEGORY) ||
+          (bodyB.collisionFilter.category === PlinkoEngine.BALL_CATEGORY &&
+            bodyA.collisionFilter.category === PlinkoEngine.PIN_CATEGORY);
+
+        if (isBallPinCollision) {
+          // Use collision depth as velocity proxy
+          const velocity = Math.abs(collision.depth) * 2;
+          soundService.playBounce(velocity);
         }
       });
     });
@@ -180,9 +179,12 @@ class PlinkoEngine {
   }
 
   /**
-   * Drops a new ball from the top with a random horizontal offset, and deducts the balance.
+   * Drops a new ball from the top with a random horizontal offset.
    */
   dropBall() {
+    // Initialize audio context on first user interaction (browser autoplay policy)
+    soundService.init();
+
     const ballOffsetRangeX = this.pinDistanceX * 0.8;
     const ballRadius = this.pinRadius * 2;
     const { friction, frictionAirByRowCount } = PlinkoEngine.ballFrictions;
@@ -208,9 +210,6 @@ class PlinkoEngine {
       },
     );
     Matter.Composite.add(this.engine.world, ball);
-
-    betAmountOfExistingBalls.update((value) => ({ ...value, [ball.id]: this.betAmount }));
-    balance.update((balance) => balance - this.betAmount);
   }
 
   /**
@@ -219,6 +218,27 @@ class PlinkoEngine {
   get binsWidthPercentage(): number {
     const lastPinX = this.pinsLastRowXCoords[this.pinsLastRowXCoords.length - 1];
     return (lastPinX - this.pinsLastRowXCoords[0]) / PlinkoEngine.WIDTH;
+  }
+
+  /**
+   * Enables or disables sound effects.
+   */
+  setSoundEnabled(enabled: boolean) {
+    soundService.setEnabled(enabled);
+  }
+
+  /**
+   * Sets the sound volume (0.0 to 1.0).
+   */
+  setSoundVolume(volume: number) {
+    soundService.setVolume(volume);
+  }
+
+  /**
+   * Gets whether sound is currently enabled.
+   */
+  isSoundEnabled(): boolean {
+    return soundService.isEnabled();
   }
 
   /**
@@ -251,42 +271,29 @@ class PlinkoEngine {
 
   /**
    * Called when a ball hits the invisible sensor at the bottom.
+   * Determines which bin the ball landed in and dispatches a custom event with the point value.
    */
   private handleBallEnterBin(ball: Matter.Body) {
     const binIndex = this.pinsLastRowXCoords.findLastIndex((pinX) => pinX < ball.position.x);
-    if (binIndex !== -1 && binIndex < this.pinsLastRowXCoords.length - 1) {
-      const betAmount = get(betAmountOfExistingBalls)[ball.id] ?? 0;
-      const multiplier = binPayouts[this.rowCount][this.riskLevel][binIndex];
-      const payoutValue = betAmount * multiplier;
-      const profit = payoutValue - betAmount;
+    if (binIndex !== -1 && binIndex < this.pinsLastRowXCoords.length - 1 && binIndex < POINT_SLOTS.length) {
+      const points = POINT_SLOTS[binIndex];
 
-      winRecords.update((records) => [
-        ...records,
-        {
-          id: uuidv4(),
-          betAmount,
-          rowCount: this.rowCount,
-          binIndex,
-          payout: {
-            multiplier,
-            value: payoutValue,
-          },
-          profit,
-        },
-      ]);
-      totalProfitHistory.update((history) => {
-        const lastTotalProfit = history.slice(-1)[0];
-        return [...history, lastTotalProfit + profit];
-      });
-      balance.update((balance) => balance + payoutValue);
+      // Only dispatch if we have valid points
+      if (points !== undefined) {
+        // Play bin landing sound (high value = 1000+ points)
+        const isHighValue = points >= 1000;
+        soundService.playBinLanding(binIndex, isHighValue);
+
+        // Dispatch custom event for the parent component to handle scoring
+        window.dispatchEvent(
+          new CustomEvent('ballEnteredBin', {
+            detail: { binIndex, points },
+          })
+        );
+      }
     }
 
     Matter.Composite.remove(this.engine.world, ball);
-    betAmountOfExistingBalls.update((value) => {
-      const newValue = { ...value };
-      delete newValue[ball.id];
-      return newValue;
-    });
   }
 
   /**
@@ -376,7 +383,6 @@ class PlinkoEngine {
         Matter.Composite.remove(this.engine.world, body);
       }
     });
-    betAmountOfExistingBalls.set({});
   }
 }
 
