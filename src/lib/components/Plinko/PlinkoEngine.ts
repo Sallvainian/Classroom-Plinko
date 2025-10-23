@@ -280,9 +280,8 @@ class PlinkoEngine {
 
       // Only dispatch if we have valid points
       if (points !== undefined) {
-        // Play bin landing sound (high value = 1000+ points)
-        const isHighValue = points >= 1000;
-        soundService.playBinLanding(binIndex, isHighValue);
+        // Play prize sound based on point value
+        soundService.playBinLanding(binIndex, points);
 
         // Dispatch custom event for the parent component to handle scoring
         window.dispatchEvent(
