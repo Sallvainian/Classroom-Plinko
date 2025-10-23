@@ -274,11 +274,22 @@ class PlinkoEngine {
    * Determines which bin the ball landed in and dispatches a custom event with the point value.
    */
   private handleBallEnterBin(ball: Matter.Body) {
-    const binIndex = this.pinsLastRowXCoords.findLastIndex((pinX) => pinX < ball.position.x);
-    if (binIndex !== -1 && binIndex < this.pinsLastRowXCoords.length - 1 && binIndex < POINT_SLOTS.length) {
+    // Find which physical space the ball landed in (between pins)
+    const physicalBinIndex = this.pinsLastRowXCoords.findLastIndex((pinX) => pinX < ball.position.x);
+
+    // Map physical bin (0 to pinsLastRowXCoords.length - 2) to logical bin (0 to POINT_SLOTS.length - 1)
+    // This handles the case where we have more pins than scoring bins
+    if (physicalBinIndex !== -1 && physicalBinIndex < this.pinsLastRowXCoords.length - 1) {
+      const totalPhysicalBins = this.pinsLastRowXCoords.length - 1;
+      const totalLogicalBins = POINT_SLOTS.length;
+
+      // Scale the physical bin index to logical bin index
+      const logicalBinIndex = Math.floor((physicalBinIndex * totalLogicalBins) / totalPhysicalBins);
+
+      // Ensure we're within bounds
+      const binIndex = Math.min(logicalBinIndex, totalLogicalBins - 1);
       const points = POINT_SLOTS[binIndex];
 
-      // Only dispatch if we have valid points
       if (points !== undefined) {
         // Play prize sound based on point value
         soundService.playBinLanding(binIndex, points);
